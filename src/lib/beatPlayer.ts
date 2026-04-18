@@ -6,6 +6,7 @@ export interface BeatOptions {
   genre: string;
   energy: string; // low | medium | high | explosive
   durationSec?: number;
+  voiceBlob?: Blob; // raw recorded audio to remix into the beat
 }
 
 type GenreProfile = {
@@ -48,6 +49,17 @@ export class BeatPlayer {
     this.ctx = ctx;
     if (ctx.state === "suspended") await ctx.resume();
 
+    // Decode voice blob before scheduling so the clock is still valid
+    let voiceBuffer: AudioBuffer | null = null;
+    if (opts.voiceBlob) {
+      try {
+        const ab = await opts.voiceBlob.arrayBuffer();
+        voiceBuffer = await ctx.decodeAudioData(ab);
+      } catch (e) {
+        console.warn("Voice decode failed:", e);
+      }
+    }
+
     const master = ctx.createGain();
     master.gain.value = 0.0001;
     master.gain.exponentialRampToValueAtTime(0.7, ctx.currentTime + 0.1);
@@ -61,7 +73,8 @@ export class BeatPlayer {
     const energyGain = { low: 0.6, medium: 0.85, high: 1, explosive: 1.15 }[opts.energy] ?? 0.9;
 
     const totalSteps = Math.floor(duration / sixteenth);
-    const start = ctx.currentTime + 0.05;
+    // Use currentTime AFTER async decode so events are never in the past
+    const start = ctx.currentTime + 0.1;
 
     if (profile.pad) this.pad(ctx, master, profile.rootHz, duration);
 
@@ -97,6 +110,11 @@ export class BeatPlayer {
       if (inBuild && pos === 0) {
         this.riser(ctx, master, t, 5 - phase);
       }
+    }
+
+    // Layer the recorded voice into the drop section
+    if (voiceBuffer) {
+      this.scheduleVoiceChops(ctx, master, voiceBuffer, start + 5, start + 25, sixteenth);
     }
 
     this.stopAt = start + duration;
@@ -216,6 +234,77 @@ export class BeatPlayer {
       osc.stop(start + dur);
       detune.stop(start + dur);
     });
+  }
+
+  // Chop, loop, pitch-shift, and reverb the recorded voice into the drop.
+  private scheduleVoiceChops(
+    ctx: AudioContext,
+    dest: AudioNode,
+    voiceBuffer: AudioBuffer,
+    dropStart: number,
+    dropEnd: number,
+    sixteenth: number,
+  ) {
+    const beatLen = sixteenth * 4;
+    const voiceDur = voiceBuffer.duration;
+    if (voiceDur < 0.05) return;
+
+    // Build a simple two-tap delay reverb shared across all voice chops
+    const delay1 = ctx.createDelay(0.5);
+    delay1.delayTime.value = 0.09;
+    const delay2 = ctx.createDelay(0.5);
+    delay2.delayTime.value = 0.17;
+    const fbGain = ctx.createGain();
+    fbGain.gain.value = 0.32;
+    const lpf = ctx.createBiquadFilter();
+    lpf.type = "lowpass";
+    lpf.frequency.value = 2800;
+    delay1.connect(delay2);
+    delay2.connect(lpf).connect(fbGain).connect(delay1);
+    const wetGain = ctx.createGain();
+    wetGain.gain.value = 0.38;
+    delay1.connect(wetGain).connect(dest);
+
+    // Helper: play one voice chop with fade envelope
+    const playChop = (t: number, offset: number, len: number, pitch: number, vol: number) => {
+      const safeOffset = offset % Math.max(voiceDur, 0.01);
+      const src = ctx.createBufferSource();
+      src.buffer = voiceBuffer;
+      src.playbackRate.value = pitch;
+      const g = ctx.createGain();
+      const fadeIn = Math.min(0.015, len * 0.08);
+      const fadeOut = Math.min(0.06, len * 0.2);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + fadeIn);
+      g.gain.setValueAtTime(vol, t + len - fadeOut);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      src.connect(g);
+      g.connect(dest);
+      g.connect(delay1);
+      src.start(t, safeOffset);
+      src.stop(t + len + 0.05);
+    };
+
+    // Pitch pattern: unison, unison, minor-3rd-up, unison, minor-3rd-down, unison, 5th-up, octave-down
+    const pitchPattern = [1, 1, 1.189, 1, 0.794, 1, 1.498, 0.5];
+
+    // Main chops every 2 beats, cycling through the voice sample
+    let chopIdx = 0;
+    for (let t = dropStart; t < dropEnd - beatLen * 2; t += beatLen * 2) {
+      const chopLen = Math.min(beatLen * 1.8, voiceDur);
+      const offset = (chopIdx * beatLen * 0.65) % Math.max(0.01, voiceDur - chopLen * 0.5);
+      playChop(t, offset, chopLen, pitchPattern[chopIdx % pitchPattern.length], 0.65);
+      chopIdx++;
+    }
+
+    // Stutter fill: 8 rapid-fire slices 60% through the drop for tension
+    const stutterT = dropStart + (dropEnd - dropStart) * 0.6;
+    for (let i = 0; i < 8; i++) {
+      const t = stutterT + i * sixteenth;
+      const offset = (i / 8) * Math.min(voiceDur, 0.8);
+      const pitch = i % 3 === 2 ? 1.498 : 1.0;
+      playChop(t, offset, sixteenth * 0.88, pitch, 0.5);
+    }
   }
 
   private riser(ctx: AudioContext, dest: AudioNode, t: number, dur: number) {

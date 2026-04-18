@@ -34,24 +34,67 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
   const [remix, setRemix] = useState<any>(null);
   const [playing, setPlaying] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  // Keep the voice blob alive even if the user re-records before playback
+  const [capturedVoice, setCapturedVoice] = useState<Blob | null>(null);
   const playerRef = useRef<BeatPlayer | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
   const generate = useServerFn(generateRemix);
-  useEffect(() => () => playerRef.current?.stop(), []);
+
+  // Clean up preview audio and object URL on unmount
+  useEffect(() => {
+    return () => {
+      playerRef.current?.stop();
+      previewAudioRef.current?.pause();
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
+
+  const togglePreview = () => {
+    if (previewing) {
+      previewAudioRef.current?.pause();
+      setPreviewing(false);
+      return;
+    }
+    if (!recorder.audioBlob) return;
+
+    // Revoke previous URL if any
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    const url = URL.createObjectURL(recorder.audioBlob);
+    previewUrlRef.current = url;
+
+    const audio = new Audio(url);
+    previewAudioRef.current = audio;
+    audio.onended = () => setPreviewing(false);
+    audio.play();
+    setPreviewing(true);
+  };
+
+  // Stop preview if user re-records
+  const handleReRecord = () => {
+    previewAudioRef.current?.pause();
+    setPreviewing(false);
+    recorder.reset();
+  };
 
   const onGenerate = async () => {
     setError(null);
     setRemix(null);
     playerRef.current?.stop();
     setPlaying(false);
-    const text = recorder.transcript.trim();
-    if (!text) {
-      setError("Record or type a voice note first.");
+
+    if (!recorder.audioBlob) {
+      setError("Tap the mic and record your voice sample first!");
       return;
     }
+
+    setCapturedVoice(recorder.audioBlob);
     setLoading(true);
     try {
       const genreLabel = GENRES.find((g) => g.id === genre)?.label ?? genre;
-      const result = await generate({ data: { transcript: text, genre: genreLabel } });
+      // Send genre as the creative brief — the voice audio drives the actual sound
+      const result = await generate({ data: { transcript: `voice drop in ${genreLabel} style`, genre: genreLabel } });
       if (result.ok) setRemix(result.remix);
       else setError(result.error);
     } catch (e) {
@@ -76,6 +119,7 @@ function Index() {
         genre,
         energy: remix.style?.energy ?? "medium",
         durationSec: 30,
+        voiceBlob: capturedVoice ?? undefined,
       },
       () => setPlaying(false),
     );
@@ -109,7 +153,7 @@ function Index() {
             Drop the Beat
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-base text-foreground/70">
-            Speak your mood. Pick a genre. Watch your voice become a 30-second remix.
+            Record your voice. Pick a genre. Hear it chopped, looped and remixed into a 30-second banger.
           </p>
         </header>
 
@@ -135,27 +179,55 @@ function Index() {
               <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-muted-foreground">
-                    Voice Input
+                    Voice Sample
                   </span>
-                  {recorder.transcript && (
+                  {recorder.audioBlob && !recorder.recording && (
                     <button
-                      onClick={recorder.reset}
+                      onClick={handleReRecord}
                       className="text-[10px] font-mono uppercase tracking-widest text-[var(--neon-pink)] hover:underline"
                     >
-                      Clear
+                      Re-record
                     </button>
                   )}
                 </div>
                 <Waveform active={recorder.recording} />
-                <textarea
-                  value={recorder.transcript}
-                  onChange={(e) => recorder.setTranscript(e.target.value)}
-                  placeholder={recorder.supported
-                    ? "Tap the mic and speak — or type your vibe here…"
-                    : "Voice not supported in this browser. Type your vibe here…"}
-                  rows={3}
-                  className="mt-2 w-full resize-none rounded-lg bg-transparent p-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                />
+                <div className="mt-2 px-1 py-1 text-sm">
+                  {recorder.recording ? (
+                    <span className="font-mono text-[var(--neon-pink)] animate-pulse">
+                      ● Recording… {recorder.duration}s — tap mic to stop
+                    </span>
+                  ) : recorder.audioBlob ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-mono text-[var(--neon-cyan)]">
+                        ✓ Voice captured ({recorder.duration}s)
+                      </span>
+                      <button
+                        onClick={togglePreview}
+                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:scale-105 active:scale-95"
+                        style={{
+                          background: previewing ? "var(--gradient-pad-3)" : "var(--gradient-pad-2)",
+                          boxShadow: "var(--shadow-neon-pink)",
+                        }}
+                      >
+                        {previewing ? (
+                          <>
+                            <Square className="h-3 w-3 fill-white" />
+                            Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-3 w-3 fill-white" />
+                            Listen
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground/60">
+                      Tap the mic to record your voice sample
+                    </span>
+                  )}
+                </div>
                 {recorder.error && (
                   <p className="mt-1 text-xs text-destructive">{recorder.error}</p>
                 )}

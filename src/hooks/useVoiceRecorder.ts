@@ -1,72 +1,75 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
-// Lightweight wrapper around the Web Speech API for browser-side transcription.
-// Falls back gracefully when unsupported.
-
-type SR = any;
-
-function getSpeechRecognition(): SR | null {
-  if (typeof window === "undefined") return null;
-  const w = window as any;
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
-}
+// Captures raw audio via MediaRecorder instead of transcribing speech.
+// Returns the recorded Blob so it can be layered into the beat.
 
 export function useVoiceRecorder() {
   const [recording, setRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [supported, setSupported] = useState(true);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const recRef = useRef<any>(null);
 
-  useEffect(() => {
-    setSupported(!!getSpeechRecognition());
-  }, []);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startTimeRef = useRef<number>(0);
+  const timerRef = useRef<number | null>(null);
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     setError(null);
-    const SR = getSpeechRecognition();
-    if (!SR) {
-      setSupported(false);
-      setError("Voice recording isn't supported in this browser. Try Chrome, or type your note below.");
-      return;
-    }
-    const rec = new SR();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = "en-US";
-    let finalText = "";
-    rec.onresult = (e: any) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText += t + " ";
-        else interim += t;
-      }
-      setTranscript((finalText + interim).trim());
-    };
-    rec.onerror = (e: any) => {
-      setError(e?.error === "not-allowed" ? "Microphone permission denied." : `Voice error: ${e?.error ?? "unknown"}`);
-      setRecording(false);
-    };
-    rec.onend = () => setRecording(false);
-    recRef.current = rec;
+    setAudioBlob(null);
+    setDuration(0);
+    chunksRef.current = [];
+
     try {
-      rec.start();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const options = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? { mimeType: "audio/webm;codecs=opus" }
+        : MediaRecorder.isTypeSupported("audio/webm")
+          ? { mimeType: "audio/webm" }
+          : {};
+      const mr = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mr;
+
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mr.onstop = () => {
+        const mimeType = mr.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        setAudioBlob(blob);
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        if (timerRef.current !== null) clearInterval(timerRef.current);
+      };
+
+      startTimeRef.current = Date.now();
+      timerRef.current = window.setInterval(() => {
+        setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 1000);
+
+      mr.start(100);
       setRecording(true);
-    } catch (err) {
-      setError("Could not start recording.");
+    } catch (err: any) {
+      const name = err?.name ?? "";
+      setError(
+        name === "NotAllowedError" || name === "PermissionDeniedError"
+          ? "Microphone permission denied."
+          : "Could not access microphone.",
+      );
     }
   }, []);
 
   const stop = useCallback(() => {
-    recRef.current?.stop();
-    setRecording(false);
+    if (timerRef.current !== null) clearInterval(timerRef.current);
+    mediaRecorderRef.current?.stop();
   }, []);
 
   const reset = useCallback(() => {
-    setTranscript("");
+    setAudioBlob(null);
+    setDuration(0);
     setError(null);
   }, []);
 
-  return { recording, transcript, setTranscript, start, stop, reset, supported, error };
+  return { recording, audioBlob, duration, start, stop, reset, error };
 }

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_GATEWAY_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
 
 const SYSTEM_PROMPT = `You are an AI music producer system that generates structured remix track plans.
@@ -147,7 +147,7 @@ const InputSchema = z.object({
 export const generateRemix = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
+    const apiKey = process.env.UMIX_API_KEY;
 
     // No API key — use local genre-based metadata so the beat always plays
     if (!apiKey) {

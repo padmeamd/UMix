@@ -40,8 +40,9 @@ export class BeatPlayer {
   private timers: number[] = [];
   private stopAt = 0;
   private onEndCb?: () => void;
+  private mixRecorder: MediaRecorder | null = null;
 
-  async play(opts: BeatOptions, onEnd?: () => void) {
+  async play(opts: BeatOptions, onEnd?: () => void, onMixReady?: (blob: Blob) => void) {
     this.stop();
     this.onEndCb = onEnd;
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
@@ -65,6 +66,28 @@ export class BeatPlayer {
     master.gain.exponentialRampToValueAtTime(0.7, ctx.currentTime + 0.1);
     master.connect(ctx.destination);
     this.master = master;
+
+    // Tap the master bus into a MediaStream so we can record the final mix
+    if (onMixReady) {
+      try {
+        const streamDest = ctx.createMediaStreamDestination();
+        master.connect(streamDest);
+        const mrOpts = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? { mimeType: "audio/webm;codecs=opus" }
+          : {};
+        const mr = new MediaRecorder(streamDest.stream, mrOpts);
+        const chunks: Blob[] = [];
+        mr.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        mr.onstop = () => {
+          const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+          onMixReady(blob);
+        };
+        mr.start(100);
+        this.mixRecorder = mr;
+      } catch (e) {
+        console.warn("Mix recording not supported:", e);
+      }
+    }
 
     const profile = getProfile(opts.genre);
     const bpm = Math.max(60, Math.min(200, opts.bpm || 120));
@@ -130,6 +153,11 @@ export class BeatPlayer {
       const ctx = this.ctx;
       window.setTimeout(() => ctx.close().catch(() => {}), 200);
     } catch {}
+    // Stop mix recorder — triggers onstop which calls onMixReady
+    if (this.mixRecorder && this.mixRecorder.state !== "inactive") {
+      try { this.mixRecorder.stop(); } catch {}
+    }
+    this.mixRecorder = null;
     this.ctx = null;
     this.master = null;
     this.timers.forEach((t) => window.clearTimeout(t));

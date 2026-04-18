@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { Disc3, Sparkles, Loader2, Play, Square } from "lucide-react";
 import { BeatPlayer } from "@/lib/beatPlayer";
 import { MicButton } from "@/components/dj/MicButton";
@@ -35,8 +34,6 @@ function Index() {
   const [remix, setRemix] = useState<any>(null);
   const [playing, setPlaying] = useState(false);
   const playerRef = useRef<BeatPlayer | null>(null);
-  const generate = useServerFn(generateRemix);
-
   useEffect(() => () => playerRef.current?.stop(), []);
 
   const onGenerate = async () => {
@@ -52,7 +49,7 @@ function Index() {
     setLoading(true);
     try {
       const genreLabel = GENRES.find((g) => g.id === genre)?.label ?? genre;
-      const result = await generate({ data: { transcript: text, genre: genreLabel } });
+      const result = await generateRemix(text, genreLabel);
       if (result.ok) setRemix(result.remix);
       else setError(result.error);
     } catch (e) {

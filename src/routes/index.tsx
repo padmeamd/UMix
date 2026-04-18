@@ -34,6 +34,7 @@ function Index() {
   const [remix, setRemix] = useState<any>(null);
   const [playing, setPlaying] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const [autotune, setAutotune] = useState(false);
   // Keep the voice blob alive even if the user re-records before playback
   const [capturedVoice, setCapturedVoice] = useState<Blob | null>(null);
   const [mixBlob, setMixBlob] = useState<Blob | null>(null);
@@ -176,6 +177,8 @@ function Index() {
         energy: remix.style?.energy ?? "medium",
         durationSec: 30,
         voiceBlob: capturedVoice ?? undefined,
+        autotune,
+        autotuneScale: "minor",
       },
       () => setPlaying(false),
       (blob) => setMixBlob(blob),
@@ -254,29 +257,56 @@ function Index() {
                       ● Recording… {recorder.duration}s — tap mic to stop
                     </span>
                   ) : recorder.audioBlob ? (
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="font-mono text-[var(--neon-cyan)]">
-                        ✓ Voice captured ({recorder.duration}s)
-                      </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-mono text-[var(--neon-cyan)]">
+                          ✓ Voice captured ({recorder.duration}s)
+                        </span>
+                        <button
+                          onClick={togglePreview}
+                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:scale-105 active:scale-95"
+                          style={{
+                            background: previewing ? "var(--gradient-pad-3)" : "var(--gradient-pad-2)",
+                            boxShadow: "var(--shadow-neon-pink)",
+                          }}
+                        >
+                          {previewing ? (
+                            <>
+                              <Square className="h-3 w-3 fill-white" />
+                              Stop
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-3 w-3 fill-white" />
+                              Listen
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Autotune toggle */}
                       <button
-                        onClick={togglePreview}
-                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:scale-105 active:scale-95"
-                        style={{
-                          background: previewing ? "var(--gradient-pad-3)" : "var(--gradient-pad-2)",
-                          boxShadow: "var(--shadow-neon-pink)",
-                        }}
+                        onClick={() => setAutotune((v) => !v)}
+                        className="inline-flex items-center gap-2 self-start rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                        style={
+                          autotune
+                            ? {
+                                background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+                                boxShadow: "0 0 14px #a855f780",
+                                color: "#fff",
+                              }
+                            : {
+                                background: "transparent",
+                                border: "1px solid rgba(255,255,255,0.2)",
+                                color: "rgba(255,255,255,0.5)",
+                              }
+                        }
                       >
-                        {previewing ? (
-                          <>
-                            <Square className="h-3 w-3 fill-white" />
-                            Stop
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-3 w-3 fill-white" />
-                            Listen
-                          </>
-                        )}
+                        {/* Autotune wave icon */}
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 12 Q5 4 8 12 Q11 20 14 12 Q17 4 20 12 Q21.5 16 22 12" />
+                        </svg>
+                        Autotune {autotune ? "On" : "Off"}
                       </button>
                     </div>
                   ) : (

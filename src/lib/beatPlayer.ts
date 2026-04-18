@@ -1,12 +1,16 @@
 // Procedurally generates a ~30s beat from remix metadata using Web Audio.
 // Pure browser code — no audio files.
 
+import { applyAutotune, type ScaleName } from "./autotune";
+
 export interface BeatOptions {
   bpm: number;
   genre: string;
   energy: string; // low | medium | high | explosive
   durationSec?: number;
-  voiceBlob?: Blob; // raw recorded audio to remix into the beat
+  voiceBlob?: Blob;    // raw recorded audio to remix into the beat
+  autotune?: boolean;  // pitch-correct the voice to nearest scale note
+  autotuneScale?: ScaleName;
 }
 
 type GenreProfile = {
@@ -56,8 +60,12 @@ export class BeatPlayer {
       try {
         const ab = await opts.voiceBlob.arrayBuffer();
         voiceBuffer = await ctx.decodeAudioData(ab);
+        // Apply pitch correction if autotune is enabled
+        if (opts.autotune && voiceBuffer) {
+          voiceBuffer = applyAutotune(voiceBuffer, ctx, opts.autotuneScale ?? "minor");
+        }
       } catch (e) {
-        console.warn("Voice decode failed:", e);
+        console.warn("Voice decode/autotune failed:", e);
       }
     }
 

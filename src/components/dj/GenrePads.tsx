@@ -18,7 +18,8 @@ interface GenrePadsProps {
 
 export function GenrePads({ value, onChange }: GenrePadsProps) {
   return (
-    <div className="grid grid-cols-4 gap-3">
+    // 2 columns on mobile → easier to tap; 4 on sm+ screens
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {GENRES.map((g) => {
         const active = value === g.id;
         return (
@@ -27,8 +28,8 @@ export function GenrePads({ value, onChange }: GenrePadsProps) {
             type="button"
             onClick={() => onChange(g.id)}
             className={cn(
-              "group relative aspect-square rounded-xl p-3 text-left transition-all duration-200",
-              "border border-white/10 overflow-hidden",
+              "group relative rounded-xl p-4 text-left transition-all duration-200",
+              "border border-white/10 overflow-hidden min-h-[80px]",
               active
                 ? "scale-[1.04] shadow-[var(--shadow-neon-pink)] border-white/40"
                 : "hover:scale-[1.02] hover:border-white/30 opacity-80 hover:opacity-100"
@@ -38,8 +39,8 @@ export function GenrePads({ value, onChange }: GenrePadsProps) {
             {active && (
               <span className="absolute inset-0 opacity-40 blur-xl" style={{ background: g.grad }} />
             )}
-            <div className="relative z-10 flex h-full flex-col justify-between">
-              <span className="text-2xl">{g.emoji}</span>
+            <div className="relative z-10 flex h-full flex-col justify-between gap-2">
+              <span className="text-2xl leading-none">{g.emoji}</span>
               <span className="text-xs font-bold uppercase tracking-wider text-white drop-shadow">
                 {g.label}
               </span>

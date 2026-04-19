@@ -200,28 +200,28 @@ function Index() {
       {/* Grid floor */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[55vh] synth-grid" />
 
-      <main className="mx-auto max-w-5xl px-4 py-10 md:py-16">
+      <main className="mx-auto max-w-5xl px-4 py-6 md:py-16">
         {/* Header */}
-        <header className="mb-10 text-center animate-fade-up">
+        <header className="mb-6 md:mb-10 text-center animate-fade-up">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-4 py-1.5 backdrop-blur">
             <Disc3 className="h-4 w-4 animate-spin-slow text-[var(--neon-pink)]" />
             <span className="text-xs font-mono uppercase tracking-[0.3em] text-foreground/80">
               UMix
             </span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-black tracking-tight text-gradient-sunset">
+          <h1 className="text-4xl md:text-7xl font-black tracking-tight text-gradient-sunset">
             Drop the Beat
           </h1>
-          <p className="mx-auto mt-3 max-w-xl text-base text-foreground/70">
+          <p className="mx-auto mt-2 md:mt-3 max-w-xl text-sm md:text-base text-foreground/70">
             Record your voice. Pick a genre. Hear it chopped, looped and remixed into a 30-second banger.
           </p>
         </header>
 
         {/* Booth */}
-        <section className="glass-panel rounded-3xl p-6 md:p-10 animate-fade-up">
-          <div className="grid gap-10 md:grid-cols-[auto_1fr] md:items-center">
+        <section className="glass-panel rounded-3xl p-4 md:p-10 animate-fade-up">
+          <div className="grid gap-6 md:gap-10 md:grid-cols-[auto_1fr] md:items-center">
             {/* Mic + waveform */}
-            <div className="flex flex-col items-center gap-6">
+            <div className="flex flex-col items-center gap-4 md:gap-6">
               <MicButton
                 recording={recorder.recording}
                 onToggle={recorder.recording ? recorder.stop : recorder.start}
@@ -244,7 +244,7 @@ function Index() {
                   {recorder.audioBlob && !recorder.recording && (
                     <button
                       onClick={handleReRecord}
-                      className="text-[10px] font-mono uppercase tracking-widest text-[var(--neon-pink)] hover:underline"
+                      className="min-h-[44px] px-3 text-xs font-mono uppercase tracking-widest text-[var(--neon-pink)] hover:underline"
                     >
                       Re-record
                     </button>
@@ -257,14 +257,15 @@ function Index() {
                       ● Recording… {recorder.duration}s — tap mic to stop
                     </span>
                   ) : recorder.audioBlob ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="font-mono text-[var(--neon-cyan)]">
-                          ✓ Voice captured ({recorder.duration}s)
+                    <div className="flex flex-col gap-3">
+                      {/* Status + Listen on one row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-sm text-[var(--neon-cyan)]">
+                          ✓ Captured ({recorder.duration}s)
                         </span>
                         <button
                           onClick={togglePreview}
-                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:scale-105 active:scale-95"
+                          className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-widest text-white transition-all hover:scale-105 active:scale-95"
                           style={{
                             background: previewing ? "var(--gradient-pad-3)" : "var(--gradient-pad-2)",
                             boxShadow: "var(--shadow-neon-pink)",
@@ -272,22 +273,22 @@ function Index() {
                         >
                           {previewing ? (
                             <>
-                              <Square className="h-3 w-3 fill-white" />
+                              <Square className="h-3.5 w-3.5 fill-white" />
                               Stop
                             </>
                           ) : (
                             <>
-                              <Play className="h-3 w-3 fill-white" />
+                              <Play className="h-3.5 w-3.5 fill-white" />
                               Listen
                             </>
                           )}
                         </button>
                       </div>
 
-                      {/* Autotune toggle */}
+                      {/* Autotune toggle — full-width on mobile for easy tap */}
                       <button
                         onClick={() => setAutotune((v) => !v)}
-                        className="inline-flex items-center gap-2 self-start rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                        className="inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
                         style={
                           autotune
                             ? {
@@ -302,7 +303,6 @@ function Index() {
                               }
                         }
                       >
-                        {/* Autotune wave icon */}
                         <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M2 12 Q5 4 8 12 Q11 20 14 12 Q17 4 20 12 Q21.5 16 22 12" />
                         </svg>
@@ -363,18 +363,18 @@ function Index() {
 
         {/* Result */}
         {remix && (
-          <section className="mt-10">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <section className="mt-6 md:mt-10">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-3">
                 <Disc3 className={`h-6 w-6 text-[var(--neon-pink)] ${playing ? "animate-spin" : "animate-spin-slow"}`} />
                 <h2 className="text-2xl font-black uppercase tracking-widest text-gradient-sunset">
                   Your Remix
                 </h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <button
                   onClick={togglePlay}
-                  className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-6 py-3 text-sm font-black uppercase tracking-[0.25em] text-white transition-all duration-300 hover:scale-[1.04]"
+                  className="group relative inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-3 text-sm font-black uppercase tracking-[0.25em] text-white transition-all duration-300 hover:scale-[1.04]"
                   style={{
                     background: playing ? "var(--gradient-pad-3)" : "var(--gradient-pad-2)",
                     boxShadow: "var(--shadow-neon-pink)",
@@ -398,17 +398,17 @@ function Index() {
 
                 {/* Save / Share buttons — appear once recording is captured */}
                 {playing ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-white/50 border border-white/10">
+                  <span className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-1.5 rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-white/50 border border-white/10">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Recording…
                   </span>
                 ) : mixBlob ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     {/* Save — always downloads */}
                     <button
                       onClick={downloadMix}
                       title="Download mix as audio file"
-                      className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-white transition-all duration-300 hover:scale-[1.04] border border-white/20 bg-white/10 backdrop-blur hover:bg-white/20"
+                      className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.2em] text-white transition-all duration-300 hover:scale-[1.04] border border-white/20 bg-white/10 backdrop-blur hover:bg-white/20"
                     >
                       <Download className="h-4 w-4" />
                       Save
@@ -418,7 +418,7 @@ function Index() {
                     <button
                       onClick={shareToWhatsApp}
                       title={canNativeShare ? "Send to WhatsApp" : "Download to send via WhatsApp"}
-                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-white transition-all duration-300 hover:scale-[1.04]"
+                      className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-white transition-all duration-300 hover:scale-[1.04]"
                       style={{
                         background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
                         boxShadow: "0 0 16px #25D36670",

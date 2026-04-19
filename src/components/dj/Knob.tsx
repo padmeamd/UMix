@@ -13,7 +13,7 @@ export function Knob({ label, defaultValue = 60, color = "var(--neon-pink)" }: K
   return (
     <div className="flex flex-col items-center gap-2">
       <div
-        className="relative h-16 w-16 rounded-full cursor-pointer select-none"
+        className="relative h-20 w-20 sm:h-16 sm:w-16 rounded-full cursor-pointer select-none"
         style={{
           background: "radial-gradient(circle at 30% 30%, oklch(0.35 0.08 295), oklch(0.18 0.05 295))",
           boxShadow: `inset 0 -3px 8px oklch(0 0 0 / 0.6), 0 0 14px ${color}`,
